@@ -12,6 +12,7 @@ int main(void)
 
     ///////////////////////////////////////////////////////////////////////////
     // Game State
+    bool paused = false;
     int player_left_score = 0;
     int player_right_score = 0;
 
@@ -35,8 +36,8 @@ int main(void)
         .y = 0.5f * height,
     };
     Vector2 ball_velocity = {
-        .x = 0.0f,
-        .y = 8.0f,
+        .x = -4.0f,
+        .y = 0.0f,
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -48,45 +49,72 @@ int main(void)
     {
         ///////////////////////////////////////////////////////////////////////
         // Update
-        if (IsKeyDown(KEY_W))
+        if (IsKeyPressed(KEY_P))
         {
-            paddle_left.y = MAX(play_height, paddle_left.y - 10);
-        }
-        if (IsKeyDown(KEY_S))
-        {
-            paddle_left.y =
-                MIN(height - paddle_left.height, paddle_left.y + 10);
+            paused = !paused;
         }
 
-        if (IsKeyDown(KEY_UP))
+        if (!paused)
         {
-            paddle_right.y = MAX(play_height, paddle_right.y - 10);
-        }
-        if (IsKeyDown(KEY_DOWN))
-        {
-            paddle_right.y =
-                MIN(height - paddle_left.height, paddle_right.y + 10);
-        }
-
-        if (ball_velocity.y > 0)
-        {
-            if (ball_position.y >= height - ball_radius)
+            if (IsKeyDown(KEY_W))
             {
-                ball_velocity.y *= -1;
-                ball_position.y = height - ball_radius;
+                paddle_left.y = MAX(play_height, paddle_left.y - 10);
             }
-        }
-        else
-        {
-            if (ball_position.y <= play_height + ball_radius)
+            if (IsKeyDown(KEY_S))
             {
-                ball_velocity.y *= -1;
-                ball_position.y = play_height + ball_radius;
+                paddle_left.y =
+                    MIN(height - paddle_left.height, paddle_left.y + 10);
             }
-        }
 
-        ball_position.x += ball_velocity.x;
-        ball_position.y += ball_velocity.y;
+            if (IsKeyDown(KEY_UP))
+            {
+                paddle_right.y = MAX(play_height, paddle_right.y - 10);
+            }
+            if (IsKeyDown(KEY_DOWN))
+            {
+                paddle_right.y =
+                    MIN(height - paddle_left.height, paddle_right.y + 10);
+            }
+
+            if (ball_velocity.y > 0)
+            {
+                if (ball_position.y >= height - ball_radius)
+                {
+                    ball_velocity.y *= -1;
+                    ball_position.y = height - ball_radius;
+                }
+            }
+            else
+            {
+                if (ball_position.y <= play_height + ball_radius)
+                {
+                    ball_velocity.y *= -1;
+                    ball_position.y = play_height + ball_radius;
+                }
+            }
+
+            if (ball_position.x < 0)
+            {
+                ++player_right_score;
+
+                ball_position.x = 0.5f * width;
+                ball_position.y = 0.5f * height;
+                ball_velocity.x = -4.0f;
+                ball_velocity.y = 0.0f;
+            }
+            else if (ball_position.x > width)
+            {
+                ++player_left_score;
+
+                ball_position.x = 0.5f * width;
+                ball_position.y = 0.5f * height;
+                ball_velocity.x = 4.0f;
+                ball_velocity.y = 0.0f;
+            }
+
+            ball_position.x += ball_velocity.x;
+            ball_position.y += ball_velocity.y;
+        }
 
         ///////////////////////////////////////////////////////////////////////
         // Render
@@ -109,6 +137,17 @@ int main(void)
         DrawText(buffer, 980, 20, 20, WHITE);
 
         DrawText("Pong", 536, 20, 20, WHITE);
+
+        // Render paused
+        if (paused)
+        {
+            const int font_size = 40;
+            const int text_width = MeasureText("Paused", font_size);
+            const int start_x = (width - text_width) / 2;
+
+            DrawRectangle(start_x - 10, 330, text_width + 20, 55, WHITE);
+            DrawText("Paused", start_x, 340, font_size, BLACK);
+        }
 
         EndDrawing();
     }
