@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include <math.h>
 #include <stdio.h>
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -7,43 +8,44 @@
 
 int main(void)
 {
-    const int width = 1080;
-    const int height = 720;
-    const int play_height = 50;
-
     ///////////////////////////////////////////////////////////////////////////
     // Game State
+    const int screen_width = 1080;
+    const int screen_height = 720;
+    const int play_start_height = 50;
+
     bool paused = false;
     int player_left_score = 0;
     int player_right_score = 0;
 
-    Rectangle paddle_left = {
-        .x = 0.03f * width,
-        .y = 0.5f * height,
-        .width = 0.01f * width,
-        .height = 0.15f * height,
+    Rectangle player_left_paddle = {
+        .x = 0.05f * screen_width,
+        .y = 0.40f * screen_height,
+        .width = 0.01f * screen_width,
+        .height = 0.2f * screen_height,
     };
 
-    Rectangle paddle_right = {
-        .x = 0.97f * width,
-        .y = 0.5f * height,
-        .width = 0.01f * width,
-        .height = 0.15f * height,
+    Rectangle player_right_paddle = {
+        .x = 0.95f * screen_width,
+        .y = 0.40f * screen_height,
+        .width = 0.01f * screen_width,
+        .height = 0.2f * screen_height,
     };
 
-    float ball_radius = 10;
     Vector2 ball_position = {
-        .x = 0.5f * width,
-        .y = 0.5f * height,
+        .x = 0.5 * screen_width,
+        .y = 0.5 * screen_height,
     };
+    float ball_radius = screen_height * 0.015f;
+
     Vector2 ball_velocity = {
-        .x = -4.0f,
+        .x = -300.f,
         .y = 0.0f,
     };
 
     ///////////////////////////////////////////////////////////////////////////
-    // Game Loop
-    InitWindow(width, height, "Pong");
+    // Running the Game
+    InitWindow(screen_width, screen_height, "Pong");
     SetTargetFPS(60);
 
     while (!WindowShouldClose())
@@ -57,135 +59,156 @@ int main(void)
 
         if (!paused)
         {
-            // paddle movement
+            // handle key presses from players
+            const float paddle_mod = 10.f;
             if (IsKeyDown(KEY_W))
             {
-                paddle_left.y = MAX(play_height, paddle_left.y - 10);
+                player_left_paddle.y =
+                    MAX(play_start_height, player_left_paddle.y - paddle_mod);
             }
+
             if (IsKeyDown(KEY_S))
             {
-                paddle_left.y =
-                    MIN(height - paddle_left.height, paddle_left.y + 10);
+                player_left_paddle.y =
+                    MIN(screen_height - player_left_paddle.height,
+                        player_left_paddle.y + paddle_mod);
             }
 
             if (IsKeyDown(KEY_UP))
             {
-                paddle_right.y = MAX(play_height, paddle_right.y - 10);
+                player_right_paddle.y =
+                    MAX(play_start_height, player_right_paddle.y - paddle_mod);
             }
+
             if (IsKeyDown(KEY_DOWN))
             {
-                paddle_right.y =
-                    MIN(height - paddle_left.height, paddle_right.y + 10);
+                player_right_paddle.y =
+                    MIN(screen_height - player_right_paddle.height,
+                        player_right_paddle.y + paddle_mod);
             }
 
-            // ball moves
-            ball_position.x += ball_velocity.x;
-            ball_position.y += ball_velocity.y;
+            const float dt = GetFrameTime();
+            ball_position.x += ball_velocity.x * dt;
+            ball_position.y += ball_velocity.y * dt;
 
-            // ball collides with the player's paddle
+            // handle collisions
             if (ball_velocity.x < 0)
             {
                 if (CheckCollisionCircleRec(ball_position, ball_radius,
-                                            paddle_left))
+                                            player_left_paddle))
                 {
-                    float hit_pos =
-                        (ball_position.y - paddle_left.y) / paddle_left.height;
-                    hit_pos = Clamp(hit_pos, 0.0f, 1.0f);
+                    float hit_pos = (ball_position.y - player_left_paddle.y) /
+                                    player_left_paddle.height;
+                    hit_pos = Clamp(hit_pos, 0.f, 1.f);
 
-                    const float bounce_angle = (hit_pos - 0.5f) * PI / 4;
-
+                    const float a = (hit_pos - 0.5f) * PI / 4;
                     const float speed = Vector2Length(ball_velocity) * 1.05f;
-                    ball_velocity.x = speed * cosf(bounce_angle);
-                    ball_velocity.y = speed * sinf(bounce_angle);
+                    ball_velocity.x = speed * cosf(a);
+                    ball_velocity.y = speed * sinf(a);
                 }
             }
             else
             {
                 if (CheckCollisionCircleRec(ball_position, ball_radius,
-                                            paddle_right))
+                                            player_right_paddle))
                 {
-                    float hit_pos = (ball_position.y - paddle_right.y) /
-                                    paddle_right.height;
-                    hit_pos = Clamp(hit_pos, 0.0f, 1.0f);
+                    float hit_pos = (ball_position.y - player_right_paddle.y) /
+                                    player_right_paddle.height;
+                    hit_pos = Clamp(hit_pos, 0.f, 1.f);
 
-                    const float bounce_angle = PI - (hit_pos - 0.5f) * PI / 4;
-
+                    const float a = PI - (hit_pos - 0.5f) * PI / 4;
                     const float speed = Vector2Length(ball_velocity) * 1.05f;
-                    ball_velocity.x = speed * cosf(bounce_angle);
-                    ball_velocity.y = speed * sinf(bounce_angle);
+                    ball_velocity.x = speed * cosf(a);
+                    ball_velocity.y = speed * sinf(a);
                 }
             }
 
-            // ball collision with top or bottom wall
+            // collision with top and bottom wall
             if (ball_velocity.y > 0)
             {
-                if (ball_position.y >= height - ball_radius)
+                if (ball_position.y >= screen_height - ball_radius)
                 {
                     ball_velocity.y *= -1;
-                    ball_position.y = height - ball_radius;
+                    ball_position.y = screen_height - ball_radius;
                 }
             }
             else
             {
-                if (ball_position.y <= play_height + ball_radius)
+                if (ball_position.y <= play_start_height + ball_radius)
                 {
                     ball_velocity.y *= -1;
-                    ball_position.y = play_height + ball_radius;
+                    ball_position.y = play_start_height + ball_radius;
                 }
             }
 
-            // ball collision with left or right wall
+            // handle scoring
             if (ball_position.x < 0)
             {
                 ++player_right_score;
 
-                ball_position.x = 0.5f * width;
-                ball_position.y = 0.5f * height;
-                ball_velocity.x = -4.0f;
-                ball_velocity.y = 0.0f;
+                ball_velocity.x = -300.f;
+                ball_velocity.y = 0.f;
+                ball_position.x = 0.5f * screen_width;
+                ball_position.y = 0.5f * screen_height;
             }
-            else if (ball_position.x > width)
+            else if (ball_position.x > screen_width)
             {
                 ++player_left_score;
 
-                ball_position.x = 0.5f * width;
-                ball_position.y = 0.5f * height;
-                ball_velocity.x = 4.0f;
-                ball_velocity.y = 0.0f;
+                ball_velocity.x = 300.f;
+                ball_velocity.y = 0.f;
+                ball_position.x = 0.5f * screen_width;
+                ball_position.y = 0.5f * screen_height;
             }
         }
 
         ///////////////////////////////////////////////////////////////////////
-        // Render
+        //// Render
         BeginDrawing();
         ClearBackground(BLACK);
 
-        // Render Game
-        DrawRectangleRec(paddle_left, WHITE);
-        DrawRectangleRec(paddle_right, WHITE);
+        // render game
+        DrawRectangleRec(player_left_paddle, WHITE);
+        DrawRectangleRec(player_right_paddle, WHITE);
         DrawCircleV(ball_position, ball_radius, WHITE);
 
-        // Render Header
-        DrawLine(0, play_height, width, play_height, WHITE);
+        // render header
+        const int header_y = 17;
+        const int font_size = 30;
+        const char *title = "Pong";
+        const int title_width = MeasureText(title, font_size);
+        DrawText("Pong", (screen_width - title_width) / 2, header_y, font_size,
+                 WHITE);
 
         char buffer[4];
         sprintf(buffer, "%d", player_left_score);
-        DrawText(buffer, 100, 20, 20, WHITE);
+        DrawText(buffer, (int)(0.1f * screen_width), header_y, font_size,
+                 WHITE);
 
         sprintf(buffer, "%d", player_right_score);
-        DrawText(buffer, 980, 20, 20, WHITE);
+        DrawText(buffer, (int)(0.9f * screen_width), header_y, font_size,
+                 WHITE);
 
-        DrawText("Pong", 536, 20, 20, WHITE);
+        DrawLine(0, play_start_height, screen_width, play_start_height, WHITE);
 
-        // Render paused
+        // render pause, if necessary
         if (paused)
         {
-            const int font_size = 40;
-            const int text_width = MeasureText("Paused", font_size);
-            const int start_x = (width - text_width) / 2;
+            const int paused_font_size = 40;
+            const char *pause_text = "Paused";
+            const int pause_width = MeasureText(pause_text, paused_font_size);
+            const int p_x = (screen_width - pause_width) / 2;
 
-            DrawRectangle(start_x - 10, 330, text_width + 20, 55, WHITE);
-            DrawText("Paused", start_x, 340, font_size, BLACK);
+            const Rectangle rec = {
+                .x = p_x - 10,
+                .y = screen_height / 2 - 30,
+                .width = pause_width + 20,
+                .height = 60,
+            };
+
+            DrawRectangleRec(rec, WHITE);
+            DrawText(pause_text, p_x, screen_height / 2 - 20, paused_font_size,
+                     BLACK);
         }
 
         EndDrawing();
